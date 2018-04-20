@@ -352,10 +352,10 @@ class CTRNNModel(object):
         #self.train_op = tf.train.AdamOptimizer(learning_rate).minimize(self.total_loss)
         self.train_op = optimizers.AMSGrad(learning_rate).minimize(self.total_loss)
 
-        optimizer = optimizers.AMSGrad(learning_rate)
-        gradients, variables = zip(*optimizer.compute_gradients(self.total_loss))
-        gradients, _ = tf.clip_by_global_norm(gradients, 7.0)
-        self.train_op = optimizer.apply_gradients(zip(gradients, variables))
+        #optimizer = optimizers.AMSGrad(learning_rate)
+        #gradients, variables = zip(*optimizer.compute_gradients(self.total_loss))
+        #gradients, _ = tf.clip_by_global_norm(gradients, 7.0)
+        #self.train_op = optimizer.apply_gradients(zip(gradients, variables))
 
         self.TBsummaries = tf.summary.merge_all()
 

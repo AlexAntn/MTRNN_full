@@ -205,7 +205,7 @@ def loadTrainingData(LangInputNeurons, MotorInputNeurons, Lang_stepEachSeq, Moto
     #sequences = [12]#, 65]
 
 
-    #print(sequences)
+    print(sequences)
 
     k = 0 #number of sequences
     t = -1 #number of saved sequences
@@ -216,56 +216,48 @@ def loadTrainingData(LangInputNeurons, MotorInputNeurons, Lang_stepEachSeq, Moto
         if line.find("SEQUENCE") != -1:
             if k in sequences: # to select random sentences
                 #print "found sequence"
-                to_train = False
+                t+=1
                 for i in range(0, Motor_stepEachSeq):
                     line = dataFile.readline()
                     line_data = line.split("\t")
                     line_data[-1] = line_data[-1].replace("\r\n",'')
                     if i == 0:
                         sentence = get_sentence(line_data[0], line_data[1])
-                        if sentence not in sentence_list:
-                            t+=1
-                            #print(sentence)
-                            to_train = True
-                    if to_train:
-                        if i == 0:
-                            sentence = get_sentence(line_data[0], line_data[1])
-                            sentence_list += [sentence]
-                            #print("sentence: ", sentence)
-                            #raw_input()
-                            l = 0
-                            p = 0
-                            for g in range(Lang_stepEachSeq):
-                                #if l == 4 and p < len(sentence):
-                                #    l = 0
-                                #    lett = sentence[p]
-                                #    p += 1
-                                m_gener[t, g, 0:MotorInputNeurons] = line_data[1:MotorInputNeurons+1]
-                                if g < len(sentence)+4 and g >=4:
-                                    lett = sentence[g-4]
-                                    if lett == ' ':
-                                        x_train[t, g,26] = 1
-                                        y_train[t, Motor_stepEachSeq + g] = 26
-                                    elif lett == '.':
-                                        x_train[t, g,27] = 1
-                                        y_train[t, Motor_stepEachSeq + g] = 27
-                                    else:
-                                        x_train[t, g, ord(lett) - 97] = 1
-                                        y_train[t, Motor_stepEachSeq + g] =  ord(lett) - 97
-                                else:
+                        sentence_list += [sentence]
+                        #print("sentence: ", sentence)
+                        #raw_input()
+                        l = 0
+                        p = 0
+                        for g in range(Lang_stepEachSeq):
+                            if l == 4 and p < len(sentence):
+                                l = 0
+                            #if l == 0:
+                                lett = sentence[p]
+                                p += 1
+                            m_gener[t, g, 0:MotorInputNeurons] = line_data[1:MotorInputNeurons+1]
+                            if g < len(sentence)*4+4 and g >=4:
+                                if lett == ' ':
                                     x_train[t, g,26] = 1
                                     y_train[t, Motor_stepEachSeq + g] = 26
-                                l += 1
-                        # we save the values for the encoders at each step
-                        m_train[t, i,0:MotorInputNeurons] = line_data[1:MotorInputNeurons+1]
-                        m_gener[t, i+Lang_stepEachSeq, 0:MotorInputNeurons] = line_data[1:MotorInputNeurons+1]
-                        y_train[t, i] = 26
-                        x_train[t, Lang_stepEachSeq + i, 26] = 1
+                                elif lett == '.':
+                                    x_train[t, g,27] = 1
+                                    y_train[t, Motor_stepEachSeq + g] = 27
+                                else:
+                                    x_train[t, g, ord(lett) - 97] = 1
+                                    y_train[t, Motor_stepEachSeq + g] =  ord(lett) - 97
+                            else:
+                                x_train[t, g,26] = 1
+                                y_train[t, Motor_stepEachSeq + g] = 26
+                            l += 1
+                    # we save the values for the encoders at each step
+                    m_train[t, i,0:MotorInputNeurons] = line_data[1:MotorInputNeurons+1]
+                    m_gener[t, i+Lang_stepEachSeq, 0:MotorInputNeurons] = line_data[1:MotorInputNeurons+1]
+                    y_train[t, i] = 26
+                    x_train[t, Lang_stepEachSeq + i, 26] = 1
 
                 # now we set the motor output to be constant in the end 
-                if to_train:
-                    for i in range(Motor_stepEachSeq, stepEachSeq):
-                        m_train[t, i,0:MotorInputNeurons] = line_data[1:MotorInputNeurons+1]
+                for i in range(Motor_stepEachSeq, stepEachSeq):
+                    m_train[t, i,0:MotorInputNeurons] = line_data[1:MotorInputNeurons+1]
                 #print("lang: ", y_train[t,:])
                 #raw_input()
             # indicator of how many sequences we have gone through
@@ -436,7 +428,7 @@ threshold_lang = 0.005
 threshold_motor = 0.03
 average_loss = 1000.0
 best_loss = 5
-best_loss_lang = 0.4
+best_loss_lang = 0.5
 best_loss_motor = 15#1000.0
 
 loss_list = []
@@ -459,8 +451,8 @@ motor_layer = 140
 motor_input = 42
 
 
-numSeq = 72#432
-Lang_stepEachSeq = 30
+numSeq = 432
+Lang_stepEachSeq = 100
 Motor_stepEachSeq = 100
 stepEachSeq = Lang_stepEachSeq + Motor_stepEachSeq
 
@@ -538,7 +530,7 @@ test_false = False
 test_true = True
 
 ############################### 
-save_path = my_path + "/mtrnn_33328_loss_0.28614750504493713"
+save_path = my_path + "/mtrnn_70053_loss_0.28338998556137085"
 ########################################## TEST ############################################
 
 MTRNN.saver.restore(MTRNN.sess, save_path)
@@ -566,7 +558,7 @@ tf.get_default_graph().finalize()
 States = np.zeros([10, stepEachSeq, 8, lang_dim1], dtype = np.float32) # 3 layers + Input + output
 
 b=0
-for i in range(0, numSeq, 20):
+for i in range(0, 432, 9):
     #raw_input()
     #new_output = np.asarray(np.zeros((1, stepEachSeq)),dtype=np.int32)
     #new_input = np.asarray(np.zeros((1, stepEachSeq, lang_dim2)),dtype=np.float32)
@@ -580,14 +572,14 @@ for i in range(0, numSeq, 20):
     new_lang_in = np.asarray(np.zeros((1, stepEachSeq, lang_input)), dtype=np.float32)
     new_motor_out = np.asarray(np.zeros((1, stepEachSeq, motor_input)), dtype=np.float32)
 
-    #print("sentence: ", sentence_list[0])
+    print("sentence: ", sentence_list[i])
 
     if test_true:
         direction = True
         #t0 = datetime.datetime.now()
         new_motor_in[0, :, :] = m_train[i, :, :]
         #state_list = []
-        output_list = []
+        #output_list = []
         softmax_list = np.zeros([stepEachSeq, lang_input], dtype = np.float32)
 
         input_x = np.zeros([1, motor_input], dtype = np.float32)
@@ -612,23 +604,29 @@ for i in range(0, numSeq, 20):
             init_state_51 = State[5][1]
             init_state_60 = State[6][0]
             init_state_61 = State[6][1]
+            if stepEachSeq < 30:
+                gate1 = np.ones([1], dtype = np.float32)
+                gate2 = np.zeros([1], dtype = np.float32)
+            else:
+                gate1 = np.zeros([1], dtype = np.float32)
+                gate2 = np.ones([1], dtype = np.float32)
 
+            #outputs, new_state, softmax = MTRNN.sess.run([MTRNN.outputs, MTRNN.new_state, MTRNN.softmax], feed_dict = {MTRNN.direction: direction, MTRNN.Inputs_m_t: input_x, MTRNN.Inputs_sentence_t: input_sentence, MTRNN.gate_lang_t:gate1  , MTRNN.gate_motor_t:gate2, 'test/initU_0:0':init_state_01, 'test/initC_0:0':init_state_00, 'test/initU_1:0':init_state_11, 'test/initC_1:0':init_state_10, 'test/initU_2:0':init_state_21, 'test/initC_2:0':init_state_20, 'test/initU_3:0':init_state_31, 'test/initC_3:0':init_state_30, 'test/initU_4:0':init_state_41, 'test/initC_4:0':init_state_40, 'test/initU_5:0':init_state_51, 'test/initC_5:0':init_state_50, 'test/initU_6:0':init_state_61, 'test/initC_6:0':init_state_60})
             outputs, new_state, softmax = MTRNN.sess.run([MTRNN.outputs, MTRNN.new_state, MTRNN.softmax], feed_dict = {MTRNN.direction: direction, MTRNN.Inputs_m_t: input_x, MTRNN.Inputs_sentence_t: input_sentence, 'test/initU_0:0':init_state_01, 'test/initC_0:0':init_state_00, 'test/initU_1:0':init_state_11, 'test/initC_1:0':init_state_10, 'test/initU_2:0':init_state_21, 'test/initC_2:0':init_state_20, 'test/initU_3:0':init_state_31, 'test/initC_3:0':init_state_30, 'test/initU_4:0':init_state_41, 'test/initC_4:0':init_state_40, 'test/initU_5:0':init_state_51, 'test/initC_5:0':init_state_50, 'test/initU_6:0':init_state_61, 'test/initC_6:0':init_state_60})
-            output_list += [outputs]
 
             #t00 = datetime.datetime.now()
             softmax_list[l, :] = softmax
             State = new_state
             #t01 = datetime.datetime.now()
             #print("matrix store time: ", (t01-t00).total_seconds())
-            #States[b, l, 0, 0:lang_input] = States[b, l, 0, 0:lang_input] + softmax_list[l,:]
-            #States[b, l, 1, 0:input_layer] = States[b, l, 1, 0:input_layer] + new_state[0][1]
-            #States[b, l, 2, 0:lang_dim1] = States[b, l, 2, 0:lang_dim1] + new_state[1][1]
-            #States[b, l, 3, 0:lang_dim2] = States[b, l, 3, 0:lang_dim2] + new_state[2][1]
-            #States[b, l, 4, 0:meaning_dim] = States[b, l, 4, 0:meaning_dim] + new_state[3][1]
-            #States[b, l, 5, 0:motor_dim2] = States[b, l, 5, 0:motor_dim2] + new_state[4][1]
-            #States[b, l, 6, 0:motor_dim1] = States[b, l, 6, 0:motor_dim1] + new_state[5][1]
-            #States[b, l, 7, 0:motor_layer] = States[b, l, 7, 0:motor_layer] + new_state[6][1]
+            States[b, l, 0, 0:lang_input] = States[b, l, 0, 0:lang_input] + softmax_list[l,:]
+            States[b, l, 1, 0:input_layer] = States[b, l, 1, 0:input_layer] + new_state[0][1]
+            States[b, l, 2, 0:lang_dim1] = States[b, l, 2, 0:lang_dim1] + new_state[1][1]
+            States[b, l, 3, 0:lang_dim2] = States[b, l, 3, 0:lang_dim2] + new_state[2][1]
+            States[b, l, 4, 0:meaning_dim] = States[b, l, 4, 0:meaning_dim] + new_state[3][1]
+            States[b, l, 5, 0:motor_dim2] = States[b, l, 5, 0:motor_dim2] + new_state[4][1]
+            States[b, l, 6, 0:motor_dim1] = States[b, l, 6, 0:motor_dim1] + new_state[5][1]
+            States[b, l, 7, 0:motor_layer] = States[b, l, 7, 0:motor_layer] + new_state[6][1]
 
             
         sentence = ""
@@ -671,15 +669,15 @@ for i in range(0, numSeq, 20):
         print("#######################################")
         sentence = ""
         for g in range(stepEachSeq):
-            if y_train[i,g] <26:
-                sentence += chr(97 + y_train[i,g])
             if y_train[i,g] == 26:
                 sentence += " "
-            if y_train[i,g] == 27:
+            elif y_train[i,g] == 27:
                 sentence += "."
+            else:
+                sentence += chr(97 + y_train[i,g])
 
         print("target: " ,sentence)
-        #print("#######################################")
+        print("#######################################")
 
 
         #if RUN_PCA:
@@ -688,7 +686,7 @@ for i in range(0, numSeq, 20):
 
     if test_false:
         direction = False
-        new_motor_in[0, :, :] = m_output[i, :, :]
+        new_motor_in[0, :, :] = m_gener[i, :, :]
         new_lang_in[0,:,:] = x_train[i,:,:]
         #state_list = []
         output_list = []
@@ -723,6 +721,13 @@ for i in range(0, numSeq, 20):
             init_state_51 = State[5][1]
             init_state_60 = State[6][0]
             init_state_61 = State[6][1]
+            if stepEachSeq < 100:
+                gate1 = np.zeros([1], dtype = np.float32)
+                gate2 = np.ones([1], dtype = np.float32)
+            else:
+                gate1 = np.ones([1], dtype = np.float32)
+                gate2 = np.zeros([1], dtype = np.float32)
+            #outputs, new_state = MTRNN.sess.run([MTRNN.outputs, MTRNN.new_state], feed_dict = {MTRNN.direction: direction, MTRNN.Inputs_m_t: input_x, MTRNN.Inputs_sentence_t: input_sentence, MTRNN.gate_lang_t:gate1  , MTRNN.gate_motor_t:gate2, 'test/initU_0:0':init_state_01, 'test/initC_0:0':init_state_00, 'test/initU_1:0':init_state_11, 'test/initC_1:0':init_state_10, 'test/initU_2:0':init_state_21, 'test/initC_2:0':init_state_20, 'test/initU_3:0':init_state_31, 'test/initC_3:0':init_state_30, 'test/initU_4:0':init_state_41, 'test/initC_4:0':init_state_40, 'test/initU_5:0':init_state_51, 'test/initC_5:0':init_state_50, 'test/initU_6:0':init_state_61, 'test/initC_6:0':init_state_60})
             outputs, new_state = MTRNN.sess.run([MTRNN.outputs, MTRNN.new_state], feed_dict = {MTRNN.direction: direction, MTRNN.Inputs_m_t: input_x, MTRNN.Inputs_sentence_t: input_sentence, 'test/initU_0:0':init_state_01, 'test/initC_0:0':init_state_00, 'test/initU_1:0':init_state_11, 'test/initC_1:0':init_state_10, 'test/initU_2:0':init_state_21, 'test/initC_2:0':init_state_20, 'test/initU_3:0':init_state_31, 'test/initC_3:0':init_state_30, 'test/initU_4:0':init_state_41, 'test/initC_4:0':init_state_40, 'test/initU_5:0':init_state_51, 'test/initC_5:0':init_state_50, 'test/initU_6:0':init_state_61, 'test/initC_6:0':init_state_60})
             output_list += [outputs]
 
@@ -730,14 +735,14 @@ for i in range(0, numSeq, 20):
             State = new_state
             #t01 = datetime.datetime.now()
             #print("matrix store time: ", (t01-t00).total_seconds())
-            #States[b, l, 0, 0:lang_input] = States[b, l, 0, 0:lang_input] + softmax_list[l,:]
-            #States[b, l, 1, 0:input_layer] = States[b, l, 1, 0:input_layer] + new_state[0][1]
-            #States[b, l, 2, 0:lang_dim1] = States[b, l, 2, 0:lang_dim1] + new_state[1][1]
-            #States[b, l, 3, 0:lang_dim2] = States[b, l, 3, 0:lang_dim2] + new_state[2][1]
-            #States[b, l, 4, 0:meaning_dim] = States[b, l, 4, 0:meaning_dim] + new_state[3][1]
-            #States[b, l, 5, 0:motor_dim2] = States[b, l, 5, 0:motor_dim2] + new_state[4][1]
-            #States[b, l, 6, 0:motor_dim1] = States[b, l, 6, 0:motor_dim1] + new_state[5][1]
-            #States[b, l, 7, 0:motor_layer] = States[b, l, 7, 0:motor_layer] + new_state[6][1]
+            States[b, l, 0, 0:lang_input] = States[b, l, 0, 0:lang_input] + softmax_list[l,:]
+            States[b, l, 1, 0:input_layer] = States[b, l, 1, 0:input_layer] + new_state[0][1]
+            States[b, l, 2, 0:lang_dim1] = States[b, l, 2, 0:lang_dim1] + new_state[1][1]
+            States[b, l, 3, 0:lang_dim2] = States[b, l, 3, 0:lang_dim2] + new_state[2][1]
+            States[b, l, 4, 0:meaning_dim] = States[b, l, 4, 0:meaning_dim] + new_state[3][1]
+            States[b, l, 5, 0:motor_dim2] = States[b, l, 5, 0:motor_dim2] + new_state[4][1]
+            States[b, l, 6, 0:motor_dim1] = States[b, l, 6, 0:motor_dim1] + new_state[5][1]
+            States[b, l, 7, 0:motor_layer] = States[b, l, 7, 0:motor_layer] + new_state[6][1]
 
         output_vec = np.zeros([stepEachSeq, motor_input], dtype = np.float32)
         #print(np.shape(output_list[0][0][0]))
@@ -745,7 +750,7 @@ for i in range(0, numSeq, 20):
         for t in range(len(output_list)):
             output_vec[t,:] = output_list[t][0][0][0:motor_input]
         #print(output_vec)
-        for t in range(0, motor_input, 1):
+        for t in range(1, motor_input, 3):
             plt.plot(output_vec[:,t], 'r')
             plt.plot(m_output[i, :, t], 'b')
             plt.show()
