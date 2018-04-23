@@ -424,9 +424,28 @@ def plot(loss_list, fig, ax):
     ax.semilogy(loss_list, 'b')
     fig.canvas.flush_events()
 
+###########################################
+
+def create_batch(x_train, y_train, m_train, m_gener, m_output, batch_size):
+    x_out = np.zeros((batch_size, x_train.shape[1], x_train.shape[2]))
+    y_out = np.zeros((batch_size, y_train.shape[1]))
+    m_out = np.zeros((batch_size, m_train.shape[1], m_train.shape[2]))
+    m_gener_out = np.zeros((batch_size, m_gener.shape[1], m_gener.shape[2]))
+    m_output_out = np.zeros((batch_size, m_output.shape[1], m_output.shape[2]))
+    for i in range(batch_size):
+        seq_index = np.random.randint(0,y_train.shape[0])
+        #print("sequence: ",seq_index)
+        x_out[i, :, :] = x_train[seq_index, :, :]
+        y_out[i, :] = y_train[seq_index, :]
+        m_out[i, :, :] = m_train[seq_index, :, :]
+        m_gener_out[i, :, :] = m_gener[seq_index, :, :]
+        m_output_out[i, :, :] = m_output[seq_index, :, :]
+    return x_out, y_out, m_out, m_gener_out, m_output_out
+
 
 
 ########################################## Control Variables ################################
+USING_BIG_BATCH = True
 direction = True
 alternate = False
 alpha = 1
@@ -515,13 +534,19 @@ if exclude_sentences:
     raw_input()
 #################################################################################
 
-init_state_IO_l = np.zeros([numSeq, input_layer], dtype = np.float32)
-init_state_fc_l = np.zeros([numSeq, lang_dim1], dtype = np.float32)
-init_state_sc_l = np.zeros([numSeq, lang_dim2], dtype = np.float32)
-init_state_ml = np.zeros([numSeq, meaning_dim], dtype = np.float32)
-init_state_IO_m = np.zeros([numSeq, motor_layer], dtype = np.float32)
-init_state_fc_m = np.zeros([numSeq, motor_dim1], dtype = np.float32)
-init_state_sc_m = np.zeros([numSeq, motor_dim2], dtype = np.float32)
+batch_size = 32
+
+if USING_BIG_BATCH:
+    x_train_b, y_train_b, m_train_b, m_gener_b, m_output_b = create_batch(x_train, y_train, m_train, m_gener, m_output, batch_size)
+    numSeqmod_b = batch_size
+
+init_state_IO_l = np.zeros([numSeqmod_b, input_layer], dtype = np.float32)
+init_state_fc_l = np.zeros([numSeqmod_b, lang_dim1], dtype = np.float32)
+init_state_sc_l = np.zeros([numSeqmod_b, lang_dim2], dtype = np.float32)
+init_state_ml = np.zeros([numSeqmod_b, meaning_dim], dtype = np.float32)
+init_state_IO_m = np.zeros([numSeqmod_b, motor_layer], dtype = np.float32)
+init_state_fc_m = np.zeros([numSeqmod_b, motor_dim1], dtype = np.float32)
+init_state_sc_m = np.zeros([numSeqmod_b, motor_dim2], dtype = np.float32)
 
 #gate_motor_to_meaning = np.zeros([numSeq, stepEachSeq], dtype = np.float32)
 #gate_motor_to_meaning[:, 100:130] = 1
@@ -555,21 +580,30 @@ epoch_idx = 0
 # 3) we train only CS.
 while (alternate and (lang_loss_list[-1] > threshold_lang or motor_loss_list[-1] > threshold_motor)) or (not alternate and ((direction and lang_loss_list[-1] > threshold_lang) or (not direction and motor_loss_list[-1] > threshold_motor))): 
     print("Training epoch " + str(epoch_idx))
+
+    #x_train_in = np.zeros([x_train_b.shape[0], x_train_b.shape[1], x_train_b.shape[2]], dtype = np.float32)
+    #y_train_in = np.zeros([y_train_b.shape[0], y_train_b.shape[1]], dtype = np.int32)
+    #m_train_in = np.zeros([m_train_b.shape[0], m_train_b.shape[1], m_train_b.shape[2]], dtype = np.float32)
+    #m_gener_in = np.zeros([m_gener_b.shape[0], m_gener_b.shape[1], m_gener_b.shape[2]], dtype = np.float32)
+    #m_output_in = np.zeros([m_output_b.shape[0], m_output_b.shape[1], m_output_b.shape[2]], dtype = np.float32)
+    if USING_BIG_BATCH:
+        x_train_b, y_train_b, m_train_b, m_gener_b, m_output_b = create_batch(x_train, y_train, m_train, m_gener, m_output, batch_size)
+
     if direction:
-        lang_inputs = np.zeros([numSeq, stepEachSeq, lang_input], dtype = np.float32)
-        motor_inputs = m_train
-        motor_outputs = np.zeros([numSeq, stepEachSeq, motor_input], dtype = np.float32)#m_output
+        lang_inputs = np.zeros([numSeqmod_b, stepEachSeq, lang_input], dtype = np.float32)
+        motor_inputs = m_train_b
+        motor_outputs = np.zeros([numSeqmod_b, stepEachSeq, motor_input], dtype = np.float32)#m_output
         #gate_1 = gate_lang_to_motor
         #gate_2 = gate
     else:
-        lang_inputs = x_train
-        motor_inputs = m_gener
-        motor_outputs = m_output
+        lang_inputs = x_train_b
+        motor_inputs = m_gener_b
+        motor_outputs = m_output_b
         #gate_1 = gate
         #gate_2 = gate_motor_to_lang
 
     t0 = datetime.datetime.now()
-    _total_loss, _train_op, _state_tuple = MTRNN.sess.run([MTRNN.total_loss, MTRNN.train_op, MTRNN.state_tuple], feed_dict={MTRNN.x:lang_inputs, MTRNN.y:y_train, MTRNN.m:motor_inputs, MTRNN.m_o:motor_outputs, MTRNN.direction:direction, 'initU_0:0':init_state_IO_l, 'initC_0:0':init_state_IO_l, 'initU_1:0':init_state_fc_l, 'initC_1:0':init_state_fc_l, 'initU_2:0':init_state_sc_l, 'initC_2:0':init_state_sc_l, 'initU_3:0':init_state_ml, 'initC_3:0':init_state_ml, 'initU_4:0':init_state_sc_m, 'initC_4:0':init_state_sc_m, 'initU_5:0':init_state_fc_m, 'initC_5:0':init_state_fc_m, 'initU_6:0':init_state_IO_m, 'initC_6:0':init_state_IO_m})
+    _total_loss, _train_op, _state_tuple = MTRNN.sess.run([MTRNN.total_loss, MTRNN.train_op, MTRNN.state_tuple], feed_dict={MTRNN.x:lang_inputs, MTRNN.y:y_train_b, MTRNN.m:motor_inputs, MTRNN.m_o:motor_outputs, MTRNN.direction:direction, 'initU_0:0':init_state_IO_l, 'initC_0:0':init_state_IO_l, 'initU_1:0':init_state_fc_l, 'initC_1:0':init_state_fc_l, 'initU_2:0':init_state_sc_l, 'initC_2:0':init_state_sc_l, 'initU_3:0':init_state_ml, 'initC_3:0':init_state_ml, 'initU_4:0':init_state_sc_m, 'initC_4:0':init_state_sc_m, 'initU_5:0':init_state_fc_m, 'initC_5:0':init_state_fc_m, 'initU_6:0':init_state_IO_m, 'initC_6:0':init_state_IO_m})
     t1 = datetime.datetime.now()
     print("epoch time: ", (t1-t0).total_seconds())
     if direction:
@@ -616,6 +650,7 @@ while (alternate and (lang_loss_list[-1] > threshold_lang or motor_loss_list[-1]
     print("saving time: ", (t2-t1).total_seconds())
     if epoch_idx > NEPOCH:
         break
+
 
 ##################################### Print error graph ####################################
 plt.ion()
